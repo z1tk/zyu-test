@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Video Player</title>
+    <style>
+h1, video {
+  text-align: center;
+}
+.plyr {
+  width: auto;
+  height: auto;
+  max-width: 90vw;
+  max-height: 70vh;
+}
+audio {
+  width: 90vw;
+}
+#warning {
+  color: red;
+}
+    </style>
+    <link rel="stylesheet" href="plyr/plyr.css" />
+  </head>
+  <body>
+    <form action="/youtube/player" target="_top"  method="get" autocomplete="off">
+      <label for="id">Video URL or ID:</label>
+      <input type="text" name="id" required>
+      <input type="submit" value="Submit">
+    </form><br>
+
+    <h1 id="title">Loading, please wait...</h1>
+    <video id="player"></video>
+    <audio id="audio"></audio>
+    <p id="data"></p>
+    <p id="date"></p>
+    <p id="author"></p><br><br>
+    <p id="description"></p>
+
+    <script src="plyr/plyr.js"></script>
+    <script>
+const urlParams = new URLSearchParams
+(window.location.search);
+fetch('https://MediaUnblocker.maxwellgeringer.repl.co/youtube/video?id=' + urlParams.get('id'))
+  .then(response => response.json())
+  .then(data => {
+    // Set video data
+    document.getElementById("title").innerHTML = data.title;
+    document.getElementById("data").innerHTML = `Views: ${data.view_count}. Likes: ${data.like_count}. Dislikes: ${data.dislike_count}.`;
+    document.getElementById("author").innerHTML = data.channel;
+    // Description
+    let description = data.description;
+    description = description.replaceAll('\n', '<br>')
+    document.getElementById("description").innerHTML = description;
+    // Upload date
+    let date = data.upload_date;
+    date = date.split('');
+    date.splice(6, 0, "/");
+    date.splice(4, 0, "/");
+    date = date.join('');
+    document.getElementById("date").innerHTML = `Uploaded on ${date}.`;
+
+    // Set initial sources data
+    var sources = {type: 'video', title: data.title, sources: [], tracks: []};
+
+    var download;
+    // Create formats
+    let formats = data.formats;
+    for (var i = 0; i < formats.length; i++) {
+      if (formats[i].container == "mp4_dash") {
+        if (formats[i].acodec == "none") {
+          let thisSource = {};
+          thisSource.src = formats[i].url;
+          thisSource.type = 'video/mp4';
+          thisSource.size = formats[i].height;
+          sources.sources.push(thisSource);
+        }
+        else {
+          download = formats[i].url;
+        }
+      }
+      else if (formats[i].container == "m4a_dash") {
+        document.getElementById('audio').src = formats[i].url;
+      }
+    }
+
+    // Load video
+    let config = {'controls': ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'airplay', 'download', 'fullscreen'], 'settings': ['quality', 'speed', 'loop', 'download'], 'autopause': false, 'invertTime': false, 'quality': { default: 576, options: [4320, 2880, 2160, 1440, 1080, 720, 576, 480, 360, 240, 144] }};
+    let player = new Plyr('#player', config);
+    player.source = sources;
+    player.download = download;
+
+    // Add events
+    let audio = document.getElementById('audio');
+        video = document.getElementsByTagName('video')[0]
+    player.on('seeking', event => {
+      audio.pause();
+    });
+    player.on('seeked', event => {
+      audio.currentTime = video.currentTime;
+    });
+    player.on('playing', event => {
+      audio.play();
+    });
+    player.on('pause', event => {
+      audio.pause();
+    });
+    player.on('waiting', event => {
+      audio.pause();
+    });
+    player.on('volumechange', event => {
+      audio.volume = player.volume;
+      audio.muted = player.muted;
+    });
+    player.on('ratechange', event => {
+      audio.playbackRate = player.speed;
+    });
+    video.ontimeupdate = function() {
+      if (Math.abs(video.currentTime - video.currentTime) > 0.2 && !player.paused) {
+        audio.currentTime = video.currentTime;
+      }
+    };
+    /*player.on('timeupdate', event => {
+      if (Math.abs(player.currentTime - player.currentTime) > 0.2 && !player.paused) {
+        audio.currentTime = player.currentTime;
+      }
+    });*/
+});
+    </script>
+  </body>
+</html>
